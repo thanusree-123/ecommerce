@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import ProductList from "../components/ProductList";
-import Cart from "../components/Cart";
-import ProductForm from "../components/ProductForm";
 
 function App() {
   const [products, setProducts] = useState([]);
