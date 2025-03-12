@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://ecommerce-00q6.onrender.com/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,6 +41,43 @@ api.interceptors.response.use(
   }
 );
 
+// Authentication helper functions
+export const authUtils = {
+  isLoggedIn: () => {
+    return !!localStorage.getItem('token');
+  },
+  
+  isAdmin: () => {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return false;
+    
+    try {
+      const user = JSON.parse(userStr);
+      return user.role === 'admin';
+    } catch (err) {
+      console.error('Error parsing user data:', err);
+      return false;
+    }
+  },
+  
+  getUser: () => {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return null;
+    
+    try {
+      return JSON.parse(userStr);
+    } catch (err) {
+      console.error('Error parsing user data:', err);
+      return null;
+    }
+  },
+  
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
+};
+
 // Product API endpoints
 export const productAPI = {
   getAll: (query = '') => api.get(`/products${query}`),
@@ -56,8 +93,8 @@ export const cartAPI = {
   get: () => api.get('/cart'),
   addItem: (productId, quantity = 1) => api.post('/cart/add', { product_id: productId, quantity }),
   updateItem: (itemId, quantity) => api.put(`/cart/items/${itemId}`, { quantity }),
-  removeItem: (itemId) => api.post('/cart/remove', { product_id: itemId }),  // Changed to match backend
-  clear: () => api.post('/cart/clear'),  // Changed from delete to post to match backend
+  removeItem: (itemId) => api.post('/cart/remove', { product_id: itemId }),
+  clear: () => api.post('/cart/clear'),
   checkout: (paymentInfo) => api.post('/cart/checkout', paymentInfo),
 };
 
