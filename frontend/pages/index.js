@@ -321,16 +321,16 @@ heroContent: {
 // GIVA product information
 const givaProductInfo = {
   "Finger rings": "GIVA 925 sterling silver rings with BIS hallmark. Tarnish-resistant and hypoallergenic.",
-  "Neckwear": "GIVA premium necklaces crafted with 925 sterling silver. Ethically sourced gemstones.",
+  "neckwear": "GIVA premium necklaces crafted with 925 sterling silver. Ethically sourced gemstones.",
   "Nose pin": "GIVA signature nose pins in 18K gold plating. Perfect for everyday wear.",
   "Pendants": "GIVA handcrafted pendants with premium zircon stones. Each piece is unique.",
-  "Watch jewellary": "GIVA luxury timepieces with Swiss movement. Limited edition designs.",
+  "watch-jewelry": "GIVA luxury timepieces with Swiss movement. Limited edition designs.",
   // Add info for other categories
   "Ankle wear": "GIVA silver anklets with traditional and modern designs. Adjustable fit for comfort.",
   "Bangles": "GIVA handcrafted bangles with intricate details. Available in multiple sizes.",
   "Bracelets": "GIVA premium bracelets with secure clasps. Ideal for gifting and daily wear.",
-  "Chains": "GIVA delicate chains crafted with precision. Various lengths available.",
-  "Ear rings": "GIVA elegant earrings with premium stones. Suitable for all occasions."
+  "Chain": "GIVA delicate chains crafted with precision. Various lengths available.",
+  "earrings": "GIVA elegant earrings with premium stones. Suitable for all occasions."
 };
 
 export default function HomePage() {
