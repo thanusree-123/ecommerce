@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ProductList from "../components/ProductList";
-import Cart from "./Cart";
+import Cart from "./cart";
 import ProductForm from "./ProductForm";
 
 function App() {
