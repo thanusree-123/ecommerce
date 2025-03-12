@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import ProductList from "./components/ProductList";
+import ProductList from "../components/ProductList";
 import Cart from "./Cart";
 import ProductForm from "./ProductForm";
 
