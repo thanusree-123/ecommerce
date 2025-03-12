@@ -34,7 +34,7 @@ const Cart = () => {
       if (newQuantity > currentQuantity) {
         // If increasing quantity, use the add to cart endpoint
         await axios.post(
-          'http://localhost:5000/api/cart/add',
+          'https://ecommerce-00q6.onrender.com/api/cart/add',
           {
             product_id: productId,
             user_id: 'default_user'
@@ -47,7 +47,7 @@ const Cart = () => {
         // If decreasing quantity, we need a different approach
         // First, remove the item
         await axios.post(
-          'http://localhost:5000/api/cart/remove',
+          'https://ecommerce-00q6.onrender.com/api/cart/remove',
           {
             product_id: productId,
             user_id: 'default_user'
@@ -60,7 +60,7 @@ const Cart = () => {
         // Then add it back with the correct quantity by adding it newQuantity times
         for (let i = 0; i < newQuantity; i++) {
           await axios.post(
-            'http://localhost:5000/api/cart/add',
+            'https://ecommerce-00q6.onrender.com/api/cart/add',
             {
               product_id: productId,
               user_id: 'default_user'
@@ -106,7 +106,7 @@ const Cart = () => {
       const token = localStorage.getItem('token');
       
       await axios.post(
-        'http://localhost:5000/api/cart/remove',
+        'https://ecommerce-00q6.onrender.com/api/cart/remove',
         {
           product_id: productId,
           user_id: 'default_user'
@@ -135,7 +135,7 @@ const Cart = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const response = await axios.get('http://localhost:5000/api/cart?user_id=default_user', {
+      const response = await axios.get('https://ecommerce-00q6.onrender.com/api/cart?user_id=default_user', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
