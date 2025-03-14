@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://ecommerce-00q6.onrender.com/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -52,14 +52,39 @@ export const productAPI = {
 };
 
 // Cart API endpoints - adjusted to match backend implementation
+// Updated cartAPI object for utils/api.js
 export const cartAPI = {
-  get: () => api.get('/cart'),
-  addItem: (productId, quantity = 1) => api.post('/cart/add', { product_id: productId, quantity }),
-  updateItem: (itemId, quantity) => api.put(`/cart/items/${itemId}`, { quantity }),
-  removeItem: (itemId) => api.post('/cart/remove', { product_id: itemId }),  // Changed to match backend
-  clear: () => api.post('/cart/clear'),  // Changed from delete to post to match backend
+  get: () => {
+    const userId = getUserIdFromLocalStorage();
+    return api.get(`/cart?user_id=${userId}`);
+  },
+  addItem: (productId) => {
+    const userId = getUserIdFromLocalStorage();
+    return api.post('/cart/add', { product_id: productId, user_id: userId });
+  },
+  removeItem: (productId) => {
+    const userId = getUserIdFromLocalStorage();
+    return api.post('/cart/remove', { product_id: productId, user_id: userId });
+  },
+  clear: () => {
+    const userId = getUserIdFromLocalStorage();
+    return api.post('/cart/clear', { user_id: userId });
+  },
   checkout: (paymentInfo) => api.post('/cart/checkout', paymentInfo),
 };
+
+// Helper function to get user ID
+// Helper function to get user ID (should return email)
+function getUserIdFromLocalStorage() {
+  if (typeof window !== 'undefined') {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      return user.email; // Return email instead of _id
+    }
+  }
+  return null;
+}
 
 // User authentication API endpoints
 export const authAPI = {
