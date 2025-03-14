@@ -11,6 +11,7 @@ const Cart = () => {
   const [userId, setUserId] = useState(null);
   const router = useRouter();
 
+  // Get user from localStorage when component mounts
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const user = JSON.parse(localStorage.getItem('user'));
@@ -22,6 +23,7 @@ const Cart = () => {
     }
   }, []);
 
+  // Fetch cart when userId is available
   useEffect(() => {
     if (userId) {
       fetchCart();
@@ -29,6 +31,8 @@ const Cart = () => {
   }, [userId]);
 
   const fetchCart = async () => {
+    if (!userId) return;
+
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -44,7 +48,6 @@ const Cart = () => {
       }
     } catch (err) {
       console.error('Cart fetch error:', err);
-      setCart({ items: [] });
       setError('Error connecting to the server.');
     } finally {
       setLoading(false);
@@ -52,6 +55,8 @@ const Cart = () => {
   };
 
   const updateQuantity = async (productId, newQuantity) => {
+    if (!userId) return;
+
     if (newQuantity < 1) {
       await removeItem(productId);
       return;
@@ -67,7 +72,7 @@ const Cart = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      await fetchCart();
+      fetchCart();
     } catch (err) {
       console.error('Failed to update quantity:', err);
       setError('Failed to update item quantity');
@@ -77,6 +82,8 @@ const Cart = () => {
   };
 
   const removeItem = async (productId) => {
+    if (!userId) return;
+
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -87,7 +94,7 @@ const Cart = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      await fetchCart();
+      fetchCart();
     } catch (err) {
       console.error('Failed to remove item:', err);
       setError('Failed to remove item from cart');
@@ -113,34 +120,32 @@ const Cart = () => {
           </button>
         </div>
       ) : (
-        <>
-          <table className={styles.cartTable}>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Price</th>
-                <th>Quantity</th>
-                <th>Total</th>
-                <th>Actions</th>
+        <table className={styles.cartTable}>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Price</th>
+              <th>Quantity</th>
+              <th>Total</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cart.items.map((item) => (
+              <tr key={item.product._id}>
+                <td>{item.product.name}</td>
+                <td>${item.product.price}</td>
+                <td>{item.quantity}</td>
+                <td>${(item.product.price * item.quantity).toFixed(2)}</td>
+                <td>
+                  <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)}>-</button>
+                  <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)}>+</button>
+                  <button onClick={() => removeItem(item.product._id)}>Remove</button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {cart.items.map((item) => (
-                <tr key={item.product._id}>
-                  <td>{item.product.name}</td>
-                  <td>${item.product.price}</td>
-                  <td>{item.quantity}</td>
-                  <td>${(item.product.price * item.quantity).toFixed(2)}</td>
-                  <td>
-                    <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)}>-</button>
-                    <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)}>+</button>
-                    <button onClick={() => removeItem(item.product._id)}>Remove</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
