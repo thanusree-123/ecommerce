@@ -52,7 +52,7 @@ const Cart = () => {
         return;
       }
 
-      const response = await axios.get(`http://localhost:5000/api/cart?user_id=${userId}`, {
+      const response = await axios.get(`https://ecommerce-00q6.onrender.com/api/cart?user_id=${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -85,7 +85,7 @@ const Cart = () => {
       }
       
       await axios.post(
-        'http://localhost:5000/api/cart/add',
+        'https://ecommerce-00q6.onrender.com/api/cart/add',
         {
           product_id: productId,
           user_id: userId
@@ -119,7 +119,7 @@ const Cart = () => {
       }
       
       const response = await axios.post(
-        'http://localhost:5000/api/cart/remove',
+        'https://ecommerce-00q6.onrender.com/api/cart/remove',
         {
           product_id: productId,
           user_id: userId
@@ -205,7 +205,7 @@ const Cart = () => {
       }
       
       await axios.post(
-        'http://localhost:5000/api/cart/clear',
+        'https://ecommerce-00q6.onrender.com/api/cart/clear',
         { user_id: userId },
         {
           headers: { Authorization: `Bearer ${token}` }
