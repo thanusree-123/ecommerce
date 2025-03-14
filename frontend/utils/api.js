@@ -1,4 +1,3 @@
-// frontend/utils/api.js
 import axios from 'axios';
 
 // Create axios instance with base URL
@@ -72,9 +71,20 @@ export const authUtils = {
     }
   },
   
+  getUserId: () => {
+    const user = authUtils.getUser();
+    // Extract user ID from the user object or use default_user as fallback
+    return user && user._id ? user._id : 'default_user';
+  },
+  
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+  },
+  
+  setUserData: (userData, token) => {
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('token', token);
   }
 };
 
@@ -88,23 +98,64 @@ export const productAPI = {
   search: (term) => api.get(`/products/search?q=${term}`),
 };
 
-// Cart API endpoints - adjusted to match backend implementation
+// Cart API endpoints - properly matching backend implementation
 export const cartAPI = {
-  get: () => api.get('/cart'),
-  addItem: (productId, quantity = 1) => api.post('/cart/add', { product_id: productId, quantity }),
-  updateItem: (itemId, quantity) => api.put(`/cart/items/${itemId}`, { quantity }),
-  removeItem: (itemId) => api.post('/cart/remove', { product_id: itemId }),
-  clear: () => api.post('/cart/clear'),
-  checkout: (paymentInfo) => api.post('/cart/checkout', paymentInfo),
+  get: () => {
+    // Get user ID from auth utils
+    const userId = authUtils.getUserId();
+    return api.get(`/cart?user_id=${userId}`);
+  },
+  
+  addItem: (productId) => {
+    const userId = authUtils.getUserId();
+    return api.post('/cart/add', { 
+      product_id: productId, 
+      user_id: userId 
+    });
+  },
+  
+  removeItem: (productId) => {
+    const userId = authUtils.getUserId();
+    return api.post('/cart/remove', { 
+      product_id: productId, 
+      user_id: userId 
+    });
+  },
+  
+  clear: () => {
+    const userId = authUtils.getUserId();
+    return api.post('/cart/clear', { 
+      user_id: userId 
+    });
+  },
+  
+  checkout: (paymentInfo) => {
+    const userId = authUtils.getUserId();
+    return api.post('/cart/checkout', {
+      ...paymentInfo,
+      user_id: userId
+    });
+  },
 };
 
 // User authentication API endpoints
 export const authAPI = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  register: (userData) => api.post('/auth/register', userData),
+  login: async (credentials) => {
+    const response = await api.post('/auth/login', credentials);
+    
+    // If login successful, save user data and token
+    if (response.data && response.data.success) {
+      const { token, ...userData } = response.data;
+      authUtils.setUserData(userData, token);
+    }
+    
+    return response;
+  },
+  
+  register: async (userData) => {
+    const response = await api.post('/auth/register', userData);
+    return response;
+  },
 };
-
-// Export getCart function for direct use
-export const getCart = () => cartAPI.get();
 
 export default api;
