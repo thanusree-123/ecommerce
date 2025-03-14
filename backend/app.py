@@ -173,6 +173,8 @@ def delete_product(product_id):
         return jsonify({"success": False, "error": f"Invalid product ID format: {str(e)}"}), 400
 
 # Cart endpoints
+# In your Flask app (app.py)
+
 @app.route('/api/cart', methods=['GET'])
 @handle_errors
 def get_cart():
@@ -180,15 +182,23 @@ def get_cart():
     token = verify_token()
     if not token:
         return jsonify({"success": False, "error": "Authentication required"}), 401
-        
-    user_id = request.args.get('user_id', 'default_user')
-    cart = cart_collection.find_one({"user_id": user_id})
-
-    if not cart:
-        cart = {"user_id": user_id, "items": []}
-        cart_collection.insert_one(cart)
-
-    cart['_id'] = str(cart['_id'])
+    
+    # Get user ID from token or request
+    # In a real app, you'd extract the user ID from the JWT token
+    # For now, we'll get it from the query parameter
+    user_id = request.args.get('user_id')
+    
+    # Ensure we have a user ID
+    if not user_id:
+        return jsonify({"success": False, "error": "User ID is required"}), 400
+    
+    # Get the cart using the Cart class
+    cart = Cart.get_cart(user_id)
+    
+    # Convert ObjectId to string for JSON serialization
+    if '_id' in cart:
+        cart['_id'] = str(cart['_id'])
+    
     return jsonify({"success": True, "cart": cart}), 200
 
 @app.route('/api/cart/add', methods=['POST'])
@@ -201,45 +211,51 @@ def add_to_cart():
     
     data = request.json
     product_id = data.get('product_id')
-    user_id = data.get('user_id', 'default_user')
-
+    user_id = data.get('user_id')
+    
+    # Validate required fields
     if not product_id:
         return jsonify({"success": False, "error": "Product ID is required"}), 400
-
-    try:
-        product = products_collection.find_one({"_id": ObjectId(product_id)})
-        if not product:
-            return jsonify({"success": False, "error": "Product not found"}), 404
-
-        product['_id'] = str(product['_id'])
-        cart = cart_collection.find_one({"user_id": user_id})
-        if not cart:
-            cart = {"user_id": user_id, "items": []}
-            cart_collection.insert_one(cart)
-
-        item_exists = False
-        for item in cart.get("items", []):
-            if item["product"]["_id"] == product['_id']:
-                item_exists = True
-                break
-
-        if item_exists:
-            cart_collection.update_one(
-                {"user_id": user_id, "items.product._id": product['_id']},
-                {"$inc": {"items.$.quantity": 1}}
-            )
-        else:
-            cart_collection.update_one(
-                {"user_id": user_id},
-                {"$push": {"items": {"product": product, "quantity": 1}}}
-            )
-
-        updated_cart = cart_collection.find_one({"user_id": user_id})
+    if not user_id:
+        return jsonify({"success": False, "error": "User ID is required"}), 400
+    
+    # Add item to cart
+    updated_cart = Cart.add_item(product_id, user_id)
+    if not updated_cart:
+        return jsonify({"success": False, "error": "Product not found"}), 404
+    
+    # Convert ObjectId to string for JSON serialization
+    if '_id' in updated_cart:
         updated_cart['_id'] = str(updated_cart['_id'])
+    
+    return jsonify({"success": True, "cart": updated_cart}), 200
 
-        return jsonify({"success": True, "cart": updated_cart}), 200
-    except Exception as e:
-        return jsonify({"success": False, "error": f"Error adding item to cart: {str(e)}"}), 500
+@app.route('/api/cart/remove', methods=['POST'])
+@handle_errors
+def remove_from_cart():
+    # Check for token
+    token = verify_token()
+    if not token:
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    
+    data = request.json
+    product_id = data.get('product_id')
+    user_id = data.get('user_id')
+    
+    # Validate required fields
+    if not product_id:
+        return jsonify({"success": False, "error": "Product ID is required"}), 400
+    if not user_id:
+        return jsonify({"success": False, "error": "User ID is required"}), 400
+    
+    # Remove item from cart
+    updated_cart = Cart.remove_item(product_id, user_id)
+    
+    # Convert ObjectId to string for JSON serialization
+    if '_id' in updated_cart:
+        updated_cart['_id'] = str(updated_cart['_id'])
+    
+    return jsonify({"success": True, "cart": updated_cart}), 200
 
 @app.route('/api/cart/clear', methods=['POST'])
 @handle_errors
@@ -248,45 +264,22 @@ def clear_cart():
     token = verify_token()
     if not token:
         return jsonify({"success": False, "error": "Authentication required"}), 401
-        
-    user_id = request.json.get('user_id', 'default_user')
-    cart_collection.update_one(
-        {"user_id": user_id},
-        {"$set": {"items": []}}
-    )
-
-    return jsonify({"success": True, "message": "Cart cleared successfully"}), 200
-
-# Added the /api/cart/remove endpoint from first code
-@app.route('/api/cart/remove', methods=['POST'])
-@handle_errors
-def remove_from_cart():
-    # Check for token
-    token = verify_token()
-    if not token:
-        return jsonify({"success": False, "error": "Authentication required"}), 401
-        
+    
     data = request.json
-    product_id = data.get('product_id')
-    user_id = data.get('user_id', 'default_user')
-
-    if not product_id:
-        return jsonify({"success": False, "error": "Product ID is required"}), 400
-
-    try:
-        # Remove the item from the cart
-        cart_collection.update_one(
-            {"user_id": user_id},
-            {"$pull": {"items": {"product._id": product_id}}}
-        )
-
-        updated_cart = cart_collection.find_one({"user_id": user_id})
+    user_id = data.get('user_id')
+    
+    # Validate required fields
+    if not user_id:
+        return jsonify({"success": False, "error": "User ID is required"}), 400
+    
+    # Clear the cart
+    updated_cart = Cart.clear_cart(user_id)
+    
+    # Convert ObjectId to string for JSON serialization
+    if '_id' in updated_cart:
         updated_cart['_id'] = str(updated_cart['_id'])
-
-        return jsonify({"success": True, "cart": updated_cart}), 200
-    except Exception as e:
-        return jsonify({"success": False, "error": f"Error removing item from cart: {str(e)}"}), 500
-
+    
+    return jsonify({"success": True, "message": "Cart cleared successfully", "cart": updated_cart}), 200
 # Serve uploaded files
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
