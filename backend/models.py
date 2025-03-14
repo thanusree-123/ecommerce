@@ -1,5 +1,6 @@
 from bson import ObjectId
 from database import get_db
+from models import Product  # Ensure Product model is imported
 
 class Cart:
     @staticmethod
@@ -8,10 +9,14 @@ class Cart:
         if not user_id:
             raise ValueError("User ID is required")
 
+        # Fetch the cart for the specific user
         cart = get_db().carts.find_one({"user_id": user_id})
+        
         if not cart:
+            # If no cart exists for the user, create a new one
             cart = {"user_id": user_id, "items": []}
             get_db().carts.insert_one(cart)
+
         return cart
 
     @staticmethod
@@ -22,18 +27,18 @@ class Cart:
 
         product = Product.get_by_id(product_id)
         if not product:
-            return None
+            return None  # If product doesn't exist, return None
 
         product["_id"] = str(product["_id"])  # Convert ObjectId for JSON
-
         cart = Cart.get_cart(user_id)
 
+        # Check if product already exists in the cart
         existing_item = next((item for item in cart["items"] if item["product"]["_id"] == product["_id"]), None)
 
         if existing_item:
             get_db().carts.update_one(
                 {"user_id": user_id, "items.product._id": product["_id"]},
-                {"$inc": {"items.$.quantity": 1}}
+                {"$inc": {"items.$.quantity": 1}}  # Increase quantity by 1
             )
         else:
             get_db().carts.update_one(
