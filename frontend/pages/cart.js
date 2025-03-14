@@ -8,21 +8,26 @@ const Cart = () => {
   const [cart, setCart] = useState({ items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userId, setUserId] = useState(null);
   const router = useRouter();
 
-  // Get logged-in user's unique ID (email)
-  const getUserId = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    return user ? user.email : null; // Using email as a unique ID
-  };
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user?.email) {
+        setUserId(user.email); // Use email as user_id
+      } else {
+        router.push('/login'); // Redirect guests to login
+      }
+    }
+  }, []);
 
-  const userId = getUserId();
-  if (!userId) {
-    router.push('/login'); // Redirect guests to login
-    return null;
-  }
+  useEffect(() => {
+    if (userId) {
+      fetchCart();
+    }
+  }, [userId]);
 
-  // Fetch user's cart data
   const fetchCart = async () => {
     try {
       setLoading(true);
@@ -32,7 +37,7 @@ const Cart = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.data && response.data.success) {
+      if (response.data?.success) {
         setCart(response.data.cart);
       } else {
         setError('Failed to load cart data');
@@ -46,7 +51,6 @@ const Cart = () => {
     }
   };
 
-  // Update item quantity
   const updateQuantity = async (productId, newQuantity) => {
     if (newQuantity < 1) {
       await removeItem(productId);
@@ -63,7 +67,7 @@ const Cart = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      await fetchCart(); // Refresh cart
+      await fetchCart();
     } catch (err) {
       console.error('Failed to update quantity:', err);
       setError('Failed to update item quantity');
@@ -72,7 +76,6 @@ const Cart = () => {
     }
   };
 
-  // Remove item from cart
   const removeItem = async (productId) => {
     try {
       setLoading(true);
@@ -84,7 +87,7 @@ const Cart = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      await fetchCart(); // Refresh cart
+      await fetchCart();
     } catch (err) {
       console.error('Failed to remove item:', err);
       setError('Failed to remove item from cart');
@@ -93,11 +96,7 @@ const Cart = () => {
     }
   };
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      fetchCart();
-    }
-  }, []);
+  if (!userId) return null; // Prevent rendering until userId is available
 
   return (
     <div className={styles.container}>
@@ -130,13 +129,11 @@ const Cart = () => {
                 <tr key={item.product._id}>
                   <td>{item.product.name}</td>
                   <td>${item.product.price}</td>
-                  <td>
-                    <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)}>-</button>
-                    {item.quantity}
-                    <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)}>+</button>
-                  </td>
+                  <td>{item.quantity}</td>
                   <td>${(item.product.price * item.quantity).toFixed(2)}</td>
                   <td>
+                    <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)}>-</button>
+                    <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)}>+</button>
                     <button onClick={() => removeItem(item.product._id)}>Remove</button>
                   </td>
                 </tr>
