@@ -1,4 +1,3 @@
-// pages/cart.js
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
@@ -11,6 +10,18 @@ const Cart = () => {
   const [error, setError] = useState(null);
   const router = useRouter();
 
+  // Get logged-in user's unique ID
+  const getUserId = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user ? user.email : null; // Assuming email is unique
+  };
+
+  const userId = getUserId();
+  if (!userId) {
+    router.push('/login'); // Redirect guests to login
+    return null;
+  }
+
   // Calculate cart total
   const calculateTotal = () => {
     return cart.items.reduce((total, item) => {
@@ -21,81 +32,36 @@ const Cart = () => {
   // Update item quantity
   const updateQuantity = async (productId, newQuantity) => {
     if (newQuantity < 1) {
-      // If quantity is less than 1, remove the item
       await removeItem(productId);
       return;
     }
-    
+
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const currentQuantity = getItemQuantity(productId);
-      
-      if (newQuantity > currentQuantity) {
-        // If increasing quantity, use the add to cart endpoint
-        await axios.post(
-          'https://ecommerce-00q6.onrender.com/api/cart/add',
-          {
-            product_id: productId,
-            user_id: 'default_user'
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-      } else if (newQuantity < currentQuantity) {
-        // If decreasing quantity, we need a different approach
-        // First, remove the item
-        await axios.post(
-          'https://ecommerce-00q6.onrender.com/api/cart/remove',
-          {
-            product_id: productId,
-            user_id: 'default_user'
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-        
-        // Then add it back with the correct quantity by adding it newQuantity times
-        for (let i = 0; i < newQuantity; i++) {
-          await axios.post(
-            'https://ecommerce-00q6.onrender.com/api/cart/add',
-            {
-              product_id: productId,
-              user_id: 'default_user'
-            },
-            {
-              headers: { Authorization: `Bearer ${token}` }
-            }
-          );
-        }
-      }
-      
-      // Update local state
-      setCart(prevCart => ({
-        ...prevCart,
-        items: prevCart.items.map(item => 
-          item.product._id === productId 
-            ? { ...item, quantity: newQuantity } 
-            : item
-        )
-      }));
-      
-      // Fetch latest cart state from server to ensure consistency
-      await fetchCart();
+
+      await axios.post(
+        'https://ecommerce-00q6.onrender.com/api/cart/update',
+        {
+          product_id: productId,
+          user_id: userId,
+          quantity: newQuantity,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      await fetchCart(); // Refresh cart
     } catch (err) {
       console.error('Failed to update quantity:', err);
       setError('Failed to update item quantity');
-      await fetchCart(); // Refresh cart on error to restore consistent state
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper function to get current quantity of an item
+  // Get item quantity
   const getItemQuantity = (productId) => {
-    const item = cart.items.find(item => item.product._id === productId);
+    const item = cart.items.find((item) => item.product._id === productId);
     return item ? item.quantity : 0;
   };
 
@@ -104,23 +70,17 @@ const Cart = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
+
       await axios.post(
         'https://ecommerce-00q6.onrender.com/api/cart/remove',
         {
           product_id: productId,
-          user_id: 'default_user'
+          user_id: userId,
         },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      // Update local state
-      setCart(prevCart => ({
-        ...prevCart,
-        items: prevCart.items.filter(item => item.product._id !== productId)
-      }));
+
+      await fetchCart(); // Refresh cart
     } catch (err) {
       console.error('Failed to remove item:', err);
       setError('Failed to remove item from cart');
@@ -129,14 +89,14 @@ const Cart = () => {
     }
   };
 
-  // Fetch cart data with user_id parameter
+  // Fetch user's cart data
   const fetchCart = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const response = await axios.get('https://ecommerce-00q6.onrender.com/api/cart?user_id=default_user', {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await axios.get(`https://ecommerce-00q6.onrender.com/api/cart?user_id=${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.data && response.data.success) {
@@ -153,23 +113,23 @@ const Cart = () => {
     }
   };
 
-  // Handle checkout process
+  // Handle checkout
   const handleCheckout = () => {
     router.push('/checkout');
   };
 
-  // Load cart data on component mount
+  // Load cart on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       fetchCart();
     }
   }, []);
 
-  // Format price with commas for thousands
+  // Format price
   const formatPrice = (price) => {
     return parseFloat(price).toLocaleString('en-US', {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     });
   };
 
@@ -187,10 +147,7 @@ const Cart = () => {
         <div className={styles.emptyCartMessage}>
           <div className={styles.emptyCartIcon}>✦</div>
           <p>Your cart is currently empty</p>
-          <button
-            onClick={() => router.push('/')}
-            className={styles.primaryButton}
-          >
+          <button onClick={() => router.push('/')} className={styles.primaryButton}>
             Explore Collections
           </button>
         </div>
@@ -226,10 +183,7 @@ const Cart = () => {
           <div className={styles.emptyCartMessage}>
             <div className={styles.emptyCartIcon}>✦</div>
             <p>Your cart is empty</p>
-            <button
-              onClick={() => router.push('/')}
-              className={styles.primaryButton}
-            >
+            <button onClick={() => router.push('/')} className={styles.primaryButton}>
               Explore Collections
             </button>
           </div>
@@ -252,22 +206,15 @@ const Cart = () => {
                       <td>
                         <div className={styles.productCell}>
                           <div className={styles.productImage}>
-                            <img
-                              src={item.product.image}
-                              alt={item.product.name}
-                            />
+                            <img src={item.product.image} alt={item.product.name} />
                           </div>
-                          <div className={styles.productName}>
-                            {item.product.name}
-                          </div>
+                          <div className={styles.productName}>{item.product.name}</div>
                         </div>
                       </td>
-                      <td className={styles.priceCell}>
-                        ${formatPrice(item.product.price)}
-                      </td>
+                      <td className={styles.priceCell}>${formatPrice(item.product.price)}</td>
                       <td className={styles.quantityCell}>
                         <div className={styles.quantityControls}>
-                          <button 
+                          <button
                             className={styles.quantityButton}
                             onClick={() => updateQuantity(item.product._id, item.quantity - 1)}
                             disabled={loading}
@@ -276,7 +223,7 @@ const Cart = () => {
                             –
                           </button>
                           <span>{item.quantity}</span>
-                          <button 
+                          <button
                             className={styles.quantityButton}
                             onClick={() => updateQuantity(item.product._id, item.quantity + 1)}
                             disabled={loading}
@@ -286,11 +233,9 @@ const Cart = () => {
                           </button>
                         </div>
                       </td>
-                      <td className={styles.totalCell}>
-                        ${formatPrice(item.product.price * item.quantity)}
-                      </td>
+                      <td className={styles.totalCell}>${formatPrice(item.product.price * item.quantity)}</td>
                       <td className={styles.actionsCell}>
-                        <button 
+                        <button
                           className={styles.removeButton}
                           onClick={() => removeItem(item.product._id)}
                           disabled={loading}
@@ -306,21 +251,9 @@ const Cart = () => {
             </div>
 
             <div className={styles.cartSummary}>
-              <div className={styles.continueShoppingContainer}>
-                <button
-                  onClick={() => router.push('/')}
-                  className={styles.secondaryButton}
-                >
-                  Continue Shopping
-                </button>
-              </div>
               <div className={styles.orderSummary}>
                 <div className={styles.totalAmount}>Total: ${formatPrice(calculateTotal())}</div>
-                <button 
-                  className={styles.checkoutButton}
-                  onClick={handleCheckout}
-                  disabled={loading}
-                >
+                <button className={styles.checkoutButton} onClick={handleCheckout} disabled={loading}>
                   Proceed to Checkout
                 </button>
               </div>
