@@ -88,6 +88,7 @@ def register():
     return jsonify({"success": True, "message": "User registered successfully", "user_id": str(user_id)}), 201
 
 # **User Login**
+# In your Flask app.py
 @app.route('/api/auth/login', methods=['POST'])
 @handle_errors
 def login():
@@ -102,11 +103,24 @@ def login():
     if not user:
         return jsonify({"success": False, "error": "Invalid credentials"}), 401
 
-    # **Check password hash**
+    # Check password hash
     if not check_password_hash(user["password"], password):
         return jsonify({"success": False, "error": "Invalid credentials"}), 401
 
-    return jsonify({"success": True, "message": "Login successful", "token": "dummy-token"}), 200
+    # Return user info along with token
+    user_data = {
+        "_id": str(user["_id"]),
+        "email": user["email"],
+        "username": user["username"],
+        "role": user.get("role", "user")
+    }
+
+    return jsonify({
+        "success": True, 
+        "message": "Login successful", 
+        "token": "dummy-token", 
+        "user": user_data
+    }), 200
 
 # Products endpoints
 @app.route('/api/products', methods=['GET'])
@@ -284,6 +298,112 @@ def clear_cart():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+# Add this to your app.py file
+class Cart:
+    @staticmethod
+    def get_cart(user_id):
+        # Find cart for user or create a new one if it doesn't exist
+        cart = cart_collection.find_one({"user_id": user_id})
+        if not cart:
+            cart = {"user_id": user_id, "items": []}
+            cart_collection.insert_one(cart)
+        
+        # Convert ObjectIds to strings for all products in items
+        for item in cart.get("items", []):
+            if "product" in item and "_id" in item["product"]:
+                item["product"]["_id"] = str(item["product"]["_id"])
+                
+        return cart
+    
+    @staticmethod
+    def add_item(product_id, user_id):
+        try:
+            # Find the product
+            product = products_collection.find_one({"_id": ObjectId(product_id)})
+            if not product:
+                return None
+                
+            # Convert ObjectId to string for serialization
+            product["_id"] = str(product["_id"])
+            
+            # Get or create user's cart
+            cart = cart_collection.find_one({"user_id": user_id})
+            if not cart:
+                cart = {"user_id": user_id, "items": []}
+                cart_collection.insert_one(cart)
+            
+            # Check if product already exists in cart
+            product_exists = False
+            for item in cart.get("items", []):
+                if item["product"]["_id"] == product_id:
+                    # Increment quantity
+                    item["quantity"] += 1
+                    product_exists = True
+                    break
+            
+            # If product doesn't exist in cart, add it
+            if not product_exists:
+                cart["items"].append({"product": product, "quantity": 1})
+            
+            # Update cart in database
+            cart_collection.update_one(
+                {"user_id": user_id},
+                {"$set": {"items": cart["items"]}}
+            )
+            
+            return Cart.get_cart(user_id)
+            
+        except Exception as e:
+            logger.error(f"Error adding item to cart: {str(e)}")
+            return {"user_id": user_id, "items": []}
+    
+    @staticmethod
+    def remove_item(product_id, user_id):
+        try:
+            # Get user's cart
+            cart = cart_collection.find_one({"user_id": user_id})
+            if not cart:
+                return {"user_id": user_id, "items": []}
+            
+            # Find the product in the cart
+            for i, item in enumerate(cart.get("items", [])):
+                if item["product"]["_id"] == product_id:
+                    # If quantity > 1, decrement
+                    if item["quantity"] > 1:
+                        cart["items"][i]["quantity"] -= 1
+                    else:
+                        # Otherwise remove the product
+                        cart["items"].pop(i)
+                    break
+            
+            # Update cart in database
+            cart_collection.update_one(
+                {"user_id": user_id},
+                {"$set": {"items": cart["items"]}}
+            )
+            
+            return Cart.get_cart(user_id)
+            
+        except Exception as e:
+            logger.error(f"Error removing item from cart: {str(e)}")
+            return {"user_id": user_id, "items": []}
+    
+    @staticmethod
+    def clear_cart(user_id):
+        try:
+            # Update cart with empty items array
+            cart_collection.update_one(
+                {"user_id": user_id},
+                {"$set": {"items": []}}
+            )
+            
+            return {"user_id": user_id, "items": []}
+            
+        except Exception as e:
+            logger.error(f"Error clearing cart: {str(e)}")
+            return {"user_id": user_id, "items": []}
 
 if __name__ == "__main__":
     app.run(debug=True)
