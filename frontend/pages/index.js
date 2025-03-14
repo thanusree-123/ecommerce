@@ -479,36 +479,64 @@ useEffect(() => {
     }));
   };
 
-  // Handle adding product to cart - UPDATED
-  const handleAddToCart = async (productId) => {
-    // Check if user is logged in
-    if (!isLoggedIn) {
-      // Redirect to login page instead of showing modal
+// Handle adding product to cart - UPDATED
+const handleAddToCart = async (productId) => {
+  // Check if user is logged in
+  if (!isLoggedIn) {
+    // Redirect to login page instead of showing modal
+    router.push('/login');
+    return;
+  }
+  
+  try {
+    // Get user data from localStorage
+    const userData = localStorage.getItem('user');
+    let userId;
+    
+    if (userData) {
+      // Get the email from user data
+      const user = JSON.parse(userData);
+      userId = user.email;
+    } else {
+      // Fallback - check if we have a user email stored separately
+      userId = localStorage.getItem('userEmail');
+    }
+    
+    if (!userId) {
+      console.error('User email not found');
       router.push('/login');
       return;
     }
     
-    try {
-      const response = await cartAPI.addItem(productId);
-      console.log('Product added to cart:', response.data);
-      // Show temporary "Added to cart" confirmation
-      setAddedToCart(prev => ({ ...prev, [productId]: true }));
-      
-      // Reset confirmation after 2 seconds
-      setTimeout(() => {
-        setAddedToCart(prev => ({ ...prev, [productId]: false }));
-      }, 2000);
-    } catch (err) {
-      console.error('Error adding product to cart:', err);
-      // If we get a 401 error, the user's token might be invalid
-      if (err.response && err.response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setIsLoggedIn(false);
-        router.push('/login');
-      }
+    // Temporarily set the user ID in localStorage to make cartAPI use the email
+    localStorage.setItem('tempUserId', userId);
+    
+    // Call the API with the product_id (user_id will be added by the cartAPI)
+    const response = await cartAPI.addItem(productId);
+    
+    // Clean up
+    localStorage.removeItem('tempUserId');
+    
+    console.log('Product added to cart:', response.data);
+    
+    // Show temporary "Added to cart" confirmation
+    setAddedToCart(prev => ({ ...prev, [productId]: true }));
+    
+    // Reset confirmation after 2 seconds
+    setTimeout(() => {
+      setAddedToCart(prev => ({ ...prev, [productId]: false }));
+    }, 2000);
+  } catch (err) {
+    console.error('Error adding product to cart:', err);
+    // If we get a 401 error, the user's token might be invalid
+    if (err.response && err.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setIsLoggedIn(false);
+      router.push('/login');
     }
-  };
+  }
+};
   
 
   // Scroll handling for navigation buttons
