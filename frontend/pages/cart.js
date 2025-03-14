@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import axios from 'axios';
 import Head from 'next/head';
 import styles from '../styles/Cart.module.css';
-import { cartAPI, authUtils } from '../utils/api';
 
 const Cart = () => {
   const [cart, setCart] = useState({ items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const router = useRouter();
-
-  // Get the current user ID
-  const getUserId = () => {
-    const user = authUtils.getUser();
-    return user ? user.id : 'default_user';
-  };
 
   // Calculate cart total
   const calculateTotal = () => {
@@ -32,27 +26,60 @@ const Cart = () => {
 
     try {
       setLoading(true);
-      
-      const userId = getUserId();
+      const token = localStorage.getItem('token');
       const currentQuantity = getItemQuantity(productId);
-      
+
       if (newQuantity > currentQuantity) {
-        // Add additional items to reach new quantity
-        for (let i = currentQuantity; i < newQuantity; i++) {
-          await cartAPI.addItem(productId);
-        }
+        await axios.post(
+          'https://ecommerce-00q6.onrender.com/api/cart/add',
+          {
+            product_id: productId,
+            user_id: 'default_user',
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
       } else if (newQuantity < currentQuantity) {
-        // Remove the item completely, then add back the desired number
-        await cartAPI.removeItem(productId);
+        await axios.post(
+          'https://ecommerce-00q6.onrender.com/api/cart/remove',
+          {
+            product_id: productId,
+            user_id: 'default_user',
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
         for (let i = 0; i < newQuantity; i++) {
-          await cartAPI.addItem(productId);
+          await axios.post(
+            'https://ecommerce-00q6.onrender.com/api/cart/add',
+            {
+              product_id: productId,
+              user_id: 'default_user',
+            },
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
         }
       }
+
+      setCart((prevCart) => ({
+        ...prevCart,
+        items: prevCart.items.map((item) =>
+          item.product._id === productId
+            ? { ...item, quantity: newQuantity }
+            : item
+        ),
+      }));
 
       await fetchCart();
     } catch (err) {
       console.error('Failed to update quantity:', err);
       setError('Failed to update item quantity');
+      await fetchCart();
     } finally {
       setLoading(false);
     }
@@ -66,8 +93,25 @@ const Cart = () => {
   const removeItem = async (productId) => {
     try {
       setLoading(true);
-      await cartAPI.removeItem(productId);
-      await fetchCart();
+      const token = localStorage.getItem('token');
+
+      await axios.post(
+        'https://ecommerce-00q6.onrender.com/api/cart/remove',
+        {
+          product_id: productId,
+          user_id: 'default_user',
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setCart((prevCart) => ({
+        ...prevCart,
+        items: prevCart.items.filter(
+          (item) => item.product._id !== productId
+        ),
+      }));
     } catch (err) {
       console.error('Failed to remove item:', err);
       setError('Failed to remove item from cart');
@@ -79,16 +123,15 @@ const Cart = () => {
   const fetchCart = async () => {
     try {
       setLoading(true);
-      
-      if (!authUtils.isLoggedIn()) {
-        // Handle non-logged in user
-        setError('Please log in to view your cart');
-        setCart({ items: [] });
-        return;
-      }
-      
-      const response = await cartAPI.get();
-      
+      const token = localStorage.getItem('token');
+
+      const response = await axios.get(
+        'https://ecommerce-00q6.onrender.com/api/cart?user_id=default_user',
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
       if (response.data && response.data.success) {
         setCart(response.data.cart);
       } else {
@@ -109,12 +152,6 @@ const Cart = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Check if user is logged in
-      if (!authUtils.isLoggedIn()) {
-        router.push('/login?redirect=cart');
-        return;
-      }
-      
       fetchCart();
     }
   }, []);
@@ -246,19 +283,7 @@ const Cart = () => {
                 </tbody>
               </table>
             </div>
-            <div className={styles.cartSummary}>
-              <div className={styles.cartTotal}>
-                <span>Total:</span>
-                <span>${calculateTotal()}</span>
-              </div>
-              <button 
-                onClick={handleCheckout} 
-                className={styles.checkoutButton}
-                disabled={loading}
-              >
-                Proceed to Checkout
-              </button>
-            </div>
+            <button onClick={handleCheckout}>Proceed to Checkout</button>
           </>
         )}
       </div>
