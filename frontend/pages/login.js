@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authAPI, authUtils } from '../utils/api';
+import { authAPI } from '../utils/api';
 import styles from './Register.module.css';
 
 const Login = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const router = useRouter();
@@ -23,32 +26,66 @@ const Login = () => {
     try {
       const response = await authAPI.login(formData);
       if (response.data.success) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('token', response.data.token);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-        }
-
+        localStorage.setItem('token', response.data.token);
         setSuccess('Login successful! Redirecting...');
-        router.push('/'); // Redirect immediately
+        setTimeout(() => router.push('/'), 2000);
       } else {
-        setError(response.data.error || 'Login failed');
+        setError(response.data.error);
       }
     } catch (err) {
-      setError('Invalid email or password');
+      setError(err.response?.data?.error || 'Invalid email or password');
     }
   };
 
   return (
     <div className={styles.pageContainer}>
+      <div className={styles.backgroundImage}></div>
       <div className={styles.container}>
-        <h2>Welcome Back</h2>
-        {error && <p className={styles.error}>{error}</p>}
-        {success && <p className={styles.success}>{success}</p>}
-        <form onSubmit={handleSubmit}>
-          <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} required />
-          <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} required />
-          <button type="submit">Login</button>
-        </form>
+        <div className={styles.formCard}>
+          <div className={styles.formHeader}>
+            <h2>Welcome Back</h2>
+            <p>Login to access your account</p>
+          </div>
+          
+          {error && <div className={styles.error}>{error}</div>}
+          {success && <div className={styles.success}>{success}</div>}
+          
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.inputGroup}>
+              <label htmlFor="email">Email</label>
+              <input 
+                type="email" 
+                id="email"
+                name="email" 
+                placeholder="Enter your email" 
+                value={formData.email} 
+                onChange={handleChange} 
+                required 
+              />
+            </div>
+            
+            <div className={styles.inputGroup}>
+              <label htmlFor="password">Password</label>
+              <input 
+                type="password" 
+                id="password"
+                name="password" 
+                placeholder="Enter your password" 
+                value={formData.password} 
+                onChange={handleChange} 
+                required 
+              />
+            </div>
+            
+            <button type="submit" className={styles.submitButton}>
+              Login
+            </button>
+            
+            <div className={styles.registerLink}>
+              Don't have an account yet? <a href="/register">Register</a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
