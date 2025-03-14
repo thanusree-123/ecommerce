@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authAPI } from '../utils/api';
+import { authAPI, authUtils } from '../utils/api';
 import styles from './Register.module.css';
 
 const Login = () => {
@@ -23,12 +23,15 @@ const Login = () => {
     try {
       const response = await authAPI.login(formData);
       if (response.data.success) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', response.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+
         setSuccess('Login successful! Redirecting...');
-        setTimeout(() => router.push('/'), 2000);
+        router.push('/'); // Redirect immediately
       } else {
-        setError(response.data.error);
+        setError(response.data.error || 'Login failed');
       }
     } catch (err) {
       setError('Invalid email or password');
