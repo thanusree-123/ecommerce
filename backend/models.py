@@ -16,7 +16,7 @@ class Cart:
 
     @staticmethod
     def add_item(product_id, user_id):
-        """Add a product to the cart"""
+        """Add a product to the user's cart"""
         if not user_id:
             raise ValueError("User ID is required")
 
