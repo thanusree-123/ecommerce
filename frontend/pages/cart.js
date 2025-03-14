@@ -10,152 +10,86 @@ const Cart = () => {
   const [error, setError] = useState(null);
   const router = useRouter();
 
-  // Calculate cart total
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user')) : null;
+  const userId = user ? user._id : null;
+
+  // Redirect to login if user is not authenticated
+  useEffect(() => {
+    if (!userId) {
+      router.push('/login');
+    } else {
+      fetchCart();
+    }
+  }, [userId]);
+
+  // Fetch cart data from API
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        `https://ecommerce-00q6.onrender.com/api/cart?user_id=${userId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        setCart(response.data.cart);
+      } else {
+        setError('Failed to load cart data');
+      }
+    } catch (err) {
+      setError('Error connecting to the server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update item quantity in cart
+  const updateQuantity = async (productId, newQuantity) => {
+    if (newQuantity < 1) {
+      await removeItem(productId);
+      return;
+    }
+    try {
+      setLoading(true);
+      await axios.post(
+        'https://ecommerce-00q6.onrender.com/api/cart/update',
+        { user_id: userId, product_id: productId, quantity: newQuantity },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchCart();
+    } catch {
+      setError('Failed to update quantity');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Remove item from cart
+  const removeItem = async (productId) => {
+    try {
+      setLoading(true);
+      await axios.post(
+        'https://ecommerce-00q6.onrender.com/api/cart/remove',
+        { user_id: userId, product_id: productId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchCart();
+    } catch {
+      setError('Failed to remove item');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate cart total price
   const calculateTotal = () => {
     return cart.items.reduce((total, item) => {
       return total + item.product.price * item.quantity;
     }, 0).toFixed(2);
   };
 
-  // Update item quantity
-  const updateQuantity = async (productId, newQuantity) => {
-    if (newQuantity < 1) {
-      await removeItem(productId);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const currentQuantity = getItemQuantity(productId);
-
-      if (newQuantity > currentQuantity) {
-        await axios.post(
-          'https://ecommerce-00q6.onrender.com/api/cart/add',
-          {
-            product_id: productId,
-            user_id: 'default_user',
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-      } else if (newQuantity < currentQuantity) {
-        await axios.post(
-          'https://ecommerce-00q6.onrender.com/api/cart/remove',
-          {
-            product_id: productId,
-            user_id: 'default_user',
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        for (let i = 0; i < newQuantity; i++) {
-          await axios.post(
-            'https://ecommerce-00q6.onrender.com/api/cart/add',
-            {
-              product_id: productId,
-              user_id: 'default_user',
-            },
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-        }
-      }
-
-      setCart((prevCart) => ({
-        ...prevCart,
-        items: prevCart.items.map((item) =>
-          item.product._id === productId
-            ? { ...item, quantity: newQuantity }
-            : item
-        ),
-      }));
-
-      await fetchCart();
-    } catch (err) {
-      console.error('Failed to update quantity:', err);
-      setError('Failed to update item quantity');
-      await fetchCart();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getItemQuantity = (productId) => {
-    const item = cart.items.find((item) => item.product._id === productId);
-    return item ? item.quantity : 0;
-  };
-
-  const removeItem = async (productId) => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-
-      await axios.post(
-        'https://ecommerce-00q6.onrender.com/api/cart/remove',
-        {
-          product_id: productId,
-          user_id: 'default_user',
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      setCart((prevCart) => ({
-        ...prevCart,
-        items: prevCart.items.filter(
-          (item) => item.product._id !== productId
-        ),
-      }));
-    } catch (err) {
-      console.error('Failed to remove item:', err);
-      setError('Failed to remove item from cart');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCart = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-
-      const response = await axios.get(
-        'https://ecommerce-00q6.onrender.com/api/cart?user_id=default_user',
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (response.data && response.data.success) {
-        setCart(response.data.cart);
-      } else {
-        setError('Failed to load cart data');
-      }
-    } catch (err) {
-      console.error('Cart fetch error:', err);
-      setCart({ items: [] });
-      setError('Error connecting to the server. Using empty cart.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCheckout = () => {
-    router.push('/checkout');
-  };
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      fetchCart();
-    }
-  }, []);
-
+  // Format price for display
   const formatPrice = (price) => {
     return parseFloat(price).toLocaleString('en-US', {
       minimumFractionDigits: 2,
@@ -163,15 +97,17 @@ const Cart = () => {
     });
   };
 
+  // Handle checkout process
+  const handleCheckout = () => {
+    router.push('/checkout');
+  };
+
   if (error) {
     return (
       <div className={styles.container}>
         <Head>
           <title>Shopping Cart | Luxury Jewelry</title>
-          <meta
-            name="description"
-            content="View and manage your jewelry selections"
-          />
+          <meta name="description" content="View and manage your jewelry selections" />
         </Head>
         <h1 className={styles.title}>Your Shopping Cart</h1>
         <div className={styles.errorAlert}>
@@ -180,10 +116,7 @@ const Cart = () => {
         <div className={styles.emptyCartMessage}>
           <div className={styles.emptyCartIcon}>✦</div>
           <p>Your cart is currently empty</p>
-          <button
-            onClick={() => router.push('/')}
-            className={styles.primaryButton}
-          >
+          <button onClick={() => router.push('/')} className={styles.primaryButton}>
             Explore Collections
           </button>
         </div>
@@ -196,10 +129,7 @@ const Cart = () => {
       <div className={styles.container}>
         <Head>
           <title>Shopping Cart | Luxury Jewelry</title>
-          <meta
-            name="description"
-            content="View and manage your jewelry selections"
-          />
+          <meta name="description" content="View and manage your jewelry selections" />
         </Head>
         <h1 className={styles.title}>Your Shopping Cart</h1>
         <div className={styles.loadingSpinner}>
@@ -213,10 +143,7 @@ const Cart = () => {
     <>
       <Head>
         <title>Shopping Cart | Luxury Jewelry</title>
-        <meta
-          name="description"
-          content="View and manage your jewelry selections"
-        />
+        <meta name="description" content="View and manage your jewelry selections" />
       </Head>
       <div className={styles.container}>
         <h1 className={styles.title}>Your Shopping Cart</h1>
@@ -225,10 +152,7 @@ const Cart = () => {
           <div className={styles.emptyCartMessage}>
             <div className={styles.emptyCartIcon}>✦</div>
             <p>Your cart is empty</p>
-            <button
-              onClick={() => router.push('/')}
-              className={styles.primaryButton}
-            >
+            <button onClick={() => router.push('/')} className={styles.primaryButton}>
               Explore Collections
             </button>
           </div>
@@ -251,30 +175,17 @@ const Cart = () => {
                       <td>{item.product.name}</td>
                       <td>${formatPrice(item.product.price)}</td>
                       <td>
-                        <button
-                          onClick={() =>
-                            updateQuantity(item.product._id, item.quantity - 1)
-                          }
-                          disabled={loading}
-                        >
+                        <button onClick={() => updateQuantity(item.product._id, item.quantity - 1)} disabled={loading}>
                           -
                         </button>
                         {item.quantity}
-                        <button
-                          onClick={() =>
-                            updateQuantity(item.product._id, item.quantity + 1)
-                          }
-                          disabled={loading}
-                        >
+                        <button onClick={() => updateQuantity(item.product._id, item.quantity + 1)} disabled={loading}>
                           +
                         </button>
                       </td>
                       <td>${formatPrice(item.product.price * item.quantity)}</td>
                       <td>
-                        <button
-                          onClick={() => removeItem(item.product._id)}
-                          disabled={loading}
-                        >
+                        <button onClick={() => removeItem(item.product._id)} disabled={loading}>
                           Remove
                         </button>
                       </td>
@@ -283,7 +194,12 @@ const Cart = () => {
                 </tbody>
               </table>
             </div>
-            <button onClick={handleCheckout}>Proceed to Checkout</button>
+            <div className={styles.cartSummary}>
+              <h3>Total: ${calculateTotal()}</h3>
+              <button onClick={handleCheckout} className={styles.checkoutButton}>
+                Proceed to Checkout
+              </button>
+            </div>
           </>
         )}
       </div>
