@@ -44,11 +44,6 @@ function App() {
     <div className="App">
       <h1>E-Commerce Store</h1>
       <ProductForm addProduct={handleAddProduct} />
-      <ProductList
-        products={products}
-        addToCart={addToCart}
-        deleteProduct={handleProductDelete}
-      />
       <Cart cart={cart} removeFromCart={removeFromCart} />
     </div>
   );
