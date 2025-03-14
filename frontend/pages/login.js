@@ -1,5 +1,4 @@
 'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '../utils/api';
@@ -22,11 +21,40 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    
+    // Hard-coded admin credentials check
+    if (formData.email === 'admin@gmail.com' && formData.password === 'admin') {
+      // Create admin user object with role
+      const adminUser = {
+        username: 'admin',
+        email: 'admin@gmail.com',
+        role: 'admin'
+      };
+      
+      // Store admin user data and a mock token
+      localStorage.setItem('user', JSON.stringify(adminUser));
+      localStorage.setItem('token', 'admin-jwt-token-mock');
+      
+      setSuccess('Admin login successful! Redirecting...');
+      setTimeout(() => router.push('/'), 2000);
+      return;
+    }
 
     try {
       const response = await authAPI.login(formData);
       if (response.data.success) {
+        // For regular users, store token and user data
         localStorage.setItem('token', response.data.token);
+        
+        // Store user data including ID and role
+        const userData = response.data.user || { 
+          email: formData.email,
+          _id: response.data.user_id, // Store user ID if returned separately
+          role: 'user' // Default role for regular users
+        };
+        
+        localStorage.setItem('user', JSON.stringify(userData));
+        
         setSuccess('Login successful! Redirecting...');
         setTimeout(() => router.push('/'), 2000);
       } else {
