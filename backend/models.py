@@ -1,5 +1,3 @@
-
-
 from bson import ObjectId
 from database import get_db
 
