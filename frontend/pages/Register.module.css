@@ -124,6 +124,12 @@
     margin-bottom: 20px;
     font-size: 14px;
   }
+
+  .fieldError {
+  color: #d32f2f;
+  font-size: 12px;
+  margin-top: 4px;
+}
   
   .success {
     background-color: rgba(76, 175, 80, 0.1);
