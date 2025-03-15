@@ -7,33 +7,67 @@ import styles from './Register.module.css';
 
 const Register = () => {
   const [formData, setFormData] = useState({
+    name: '',
     username: '',
-    mobile:'',
     email: '',
+    mobile: '',
     password: '',
-    role:"user",
   });
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState('');
   const router = useRouter();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
+    }
+    
+    // Username validation
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required';
+    }
+    
+    // Email validation - must be @gmail.com
+    const emailRegex = /^[a-zA-Z0-9._-]+@gmail\.com$/;
+    if (!emailRegex.test(formData.email)) {
+      newErrors.email = 'Email must be a valid Gmail address';
+    }
+    
+    // Mobile validation - must be 10 digits
+    const mobileRegex = /^\d{10}$/;
+    if (!mobileRegex.test(formData.mobile)) {
+      newErrors.mobile = 'Mobile number must be 10 digits';
+    }
+    
+    // Password validation
+    if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const validateEmail=(email) => {
-    return email.endsWith("@gmail.com");
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    
+    // Clear the specific error when field is edited
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setSuccess('');
-
-    if(!validateEmail(formData.email))=>{
-      setError('only @gmail.com emails are allowed.');
+    
+    // Validate the form
+    if (!validateForm()) {
       return;
-    };
+    }
 
     try {
       const response = await authAPI.register(formData);
@@ -41,10 +75,12 @@ const Register = () => {
         setSuccess('Registration successful! Redirecting...');
         setTimeout(() => router.push('/login'), 2000);
       } else {
-        setError(response.data.error);
+        setErrors({ general: response.data.error });
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed');
+      setErrors({ 
+        general: err.response?.data?.error || 'Registration failed' 
+      });
     }
   };
 
@@ -58,10 +94,23 @@ const Register = () => {
             <p>Fill in your details to get started</p>
           </div>
           
-          {error && <div className={styles.error}>{error}</div>}
+          {errors.general && <div className={styles.error}>{errors.general}</div>}
           {success && <div className={styles.success}>{success}</div>}
           
           <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.inputGroup}>
+              <label htmlFor="name">Full Name</label>
+              <input 
+                type="text" 
+                id="name"
+                name="name" 
+                placeholder="Enter your full name" 
+                value={formData.name} 
+                onChange={handleChange} 
+                required 
+              />
+              {errors.name && <span className={styles.fieldError}>{errors.name}</span>}
+            </div>
             
             <div className={styles.inputGroup}>
               <label htmlFor="username">Username</label>
@@ -74,18 +123,7 @@ const Register = () => {
                 onChange={handleChange} 
                 required 
               />
-            </div>
-              <div className={styles.inputGroup}>
-              <label htmlFor="mobile">Mobile Number</label>
-              <input 
-                type="text" 
-                id="mobile"
-                name="mobile" 
-                placeholder="Enter your mobile number" 
-                value={formData.mobile} 
-                onChange={handleChange} 
-                required 
-              />
+              {errors.username && <span className={styles.fieldError}>{errors.username}</span>}
             </div>
             
             <div className={styles.inputGroup}>
@@ -94,11 +132,26 @@ const Register = () => {
                 type="email" 
                 id="email"
                 name="email" 
-                placeholder="Enter your email" 
+                placeholder="Enter your Gmail address" 
                 value={formData.email} 
                 onChange={handleChange} 
                 required 
               />
+              {errors.email && <span className={styles.fieldError}>{errors.email}</span>}
+            </div>
+            
+            <div className={styles.inputGroup}>
+              <label htmlFor="mobile">Mobile Number</label>
+              <input 
+                type="tel" 
+                id="mobile"
+                name="mobile" 
+                placeholder="Enter your 10-digit mobile number" 
+                value={formData.mobile} 
+                onChange={handleChange} 
+                required 
+              />
+              {errors.mobile && <span className={styles.fieldError}>{errors.mobile}</span>}
             </div>
             
             <div className={styles.inputGroup}>
@@ -112,14 +165,7 @@ const Register = () => {
                 onChange={handleChange} 
                 required 
               />
-            </div>
-
-            <div className={styles.inputGroup}>
-              <label htmlFor="role">Role</label>
-              <select name="role" id="role" value={formData.role} onChange={handleChange}>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-                  </select>
+              {errors.password && <span className={styles.fieldError}>{errors.password}</span>}
             </div>
             
             <button type="submit" className={styles.submitButton}>
