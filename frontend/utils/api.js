@@ -12,6 +12,11 @@ const api = axios.create({
 // Request interceptor for adding auth token
 api.interceptors.request.use(
   (config) => {
+    // Don't set Content-Type for FormData (file uploads)
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
@@ -49,10 +54,10 @@ export const productAPI = {
   update: (id, productData) => api.put(`/products/${id}`, productData),
   delete: (id) => api.delete(`/products/${id}`),
   search: (term) => api.get(`/products/search?q=${term}`),
+  uploadImage: (formData) => api.post('/upload', formData),
 };
 
-// Cart API endpoints - adjusted to match backend implementation
-// Updated cartAPI object for utils/api.js
+// Cart API endpoints
 export const cartAPI = {
   get: () => {
     const userId = getUserIdFromLocalStorage();
@@ -74,7 +79,6 @@ export const cartAPI = {
 };
 
 // Helper function to get user ID
-// Helper function to get user ID (should return email)
 function getUserIdFromLocalStorage() {
   if (typeof window !== 'undefined') {
     const userData = localStorage.getItem('user');
