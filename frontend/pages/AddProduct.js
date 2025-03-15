@@ -9,8 +9,11 @@ const AddProduct = () => {
   const [product, setProduct] = useState({
     name: '',
     price: '',
+    description: '',
     image: ''
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -76,6 +79,21 @@ const AddProduct = () => {
     });
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      // Create a preview URL for the selected image
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      // Clear the image URL field as we'll be uploading a file
+      setProduct({
+        ...product,
+        image: ''
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -95,14 +113,57 @@ const AddProduct = () => {
       return;
     }
 
-    if (!product.image) {
-      setError('Product image URL is required');
+    if (!product.description) {
+      setError('Product description is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!imageFile && !product.image) {
+      setError('Product image is required (either file upload or URL)');
       setLoading(false);
       return;
     }
 
     try {
-      const response = await productAPI.create(product);
+      let productData = {
+        name: product.name,
+        price: product.price,
+        description: product.description
+      };
+
+      // If we have an image file, upload it first
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        
+        // Get the auth token from localStorage
+        const userString = localStorage.getItem('user');
+        const user = JSON.parse(userString);
+        const token = user.token || 'dummy-token';
+
+        // Upload the image file
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image');
+        }
+
+        const uploadData = await uploadResponse.json();
+        productData.image = uploadData.imageUrl;
+      } else {
+        // Use the provided image URL
+        productData.image = product.image;
+      }
+
+      // Create the product with the image URL
+      const response = await productAPI.create(productData);
       
       if (response.data.success) {
         // Show success message
@@ -112,8 +173,11 @@ const AddProduct = () => {
         setProduct({
           name: '',
           price: '',
+          description: '',
           image: ''
         });
+        setImageFile(null);
+        setImagePreview('');
         
         // Refresh product list
         fetchProducts();
@@ -251,21 +315,57 @@ const AddProduct = () => {
             </div>
             
             <div className={styles.inputGroup}>
-              <label htmlFor="image">Image URL</label>
-              <input
-                type="text"
-                id="image"
-                name="image"
-                value={product.image}
+              <label htmlFor="description">Description</label>
+              <textarea
+                id="description"
+                name="description"
+                value={product.description}
                 onChange={handleChange}
-                placeholder="https://example.com/image.jpg"
+                placeholder="Enter product description"
+                rows="4"
               />
+            </div>
+            
+            <div className={styles.inputGroup}>
+              <label>Product Image</label>
+              <div className={styles.imageInputOptions}>
+                <div className={styles.imageUploadOption}>
+                  <input
+                    type="file"
+                    id="imageFile"
+                    name="imageFile"
+                    onChange={handleImageChange}
+                    accept="image/*"
+                    className={styles.fileInput}
+                  />
+                  <label htmlFor="imageFile" className={styles.fileInputLabel}>
+                    Choose File
+                  </label>
+                  {imageFile && <span className={styles.fileName}>{imageFile.name}</span>}
+                </div>
+                
+                <div className={styles.divider}>
+                  <span>OR</span>
+                </div>
+                
+                <div className={styles.imageUrlOption}>
+                  <input
+                    type="text"
+                    id="image"
+                    name="image"
+                    value={product.image}
+                    onChange={handleChange}
+                    placeholder="Enter image URL"
+                    disabled={!!imageFile}
+                  />
+                </div>
+              </div>
               
-              {product.image && (
+              {(imagePreview || product.image) && (
                 <div className={styles.imagePreview}>
                   <p>Preview:</p>
                   <img 
-                    src={product.image} 
+                    src={imagePreview || product.image} 
                     alt="Product preview" 
                     onError={(e) => {
                       e.target.onerror = null;
@@ -322,7 +422,10 @@ const AddProduct = () => {
                   </div>
                   <div className={styles.productInfo}>
                     <h3>{item.name}</h3>
-                    <p>${parseFloat(item.price).toFixed(2)}</p>
+                    <p className={styles.price}>${parseFloat(item.price).toFixed(2)}</p>
+                    {item.description && (
+                      <p className={styles.description}>{item.description}</p>
+                    )}
                   </div>
                   <div className={styles.productActions}>
                     <button
