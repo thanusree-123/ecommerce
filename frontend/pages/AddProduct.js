@@ -1,7 +1,10 @@
+AddProduct.js
+
 // pages/add-product.js
 import { useState, useEffect } from 'react';
 import { productAPI } from '../utils/api';
 import { useRouter } from 'next/router';
+import api from '../utils/api';  // Import the axios instance
 import styles from './AddProduct.module.css';
 
 const AddProduct = () => {
@@ -137,26 +140,18 @@ const AddProduct = () => {
         const formData = new FormData();
         formData.append('image', imageFile);
         
-        // Get the auth token from localStorage
-        const userString = localStorage.getItem('user');
-        const user = JSON.parse(userString);
-        const token = user.token || 'dummy-token';
-
-        // Upload the image file
-        const uploadResponse = await fetch('/api/upload', {
+        // Use axios instance for consistent base URL handling
+        const uploadResponse = await api({
           method: 'POST',
+          url: '/upload',
+          data: formData,
           headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
+            'Content-Type': 'multipart/form-data'
+          }
         });
 
-        if (!uploadResponse.ok) {
-          throw new Error('Failed to upload image');
-        }
-
-        const uploadData = await uploadResponse.json();
-        productData.image = uploadData.imageUrl;
+        // Set the image URL from the response
+        productData.image = uploadResponse.data.imageUrl;
       } else {
         // Use the provided image URL
         productData.image = product.image;
@@ -167,7 +162,7 @@ const AddProduct = () => {
       
       if (response.data.success) {
         // Show success message
-        setSuccess(`Product "${product.name}" added successfully!`);
+        setSuccess(Product "${product.name}" added successfully!);
         
         // Reset form to add another product
         setProduct({
@@ -188,6 +183,7 @@ const AddProduct = () => {
         }, 5000);
       }
     } catch (err) {
+      console.error('Error adding product:', err);
       setError(err.response?.data?.error || 'Failed to add product. Please try again.');
     } finally {
       setLoading(false);
@@ -195,11 +191,11 @@ const AddProduct = () => {
   };
 
   const handleDeleteProduct = async (productId, productName) => {
-    if (window.confirm(`Are you sure you want to delete "${productName}"?`)) {
+    if (window.confirm(Are you sure you want to delete "${productName}"?)) {
       setDeleteLoading(true);
       try {
         await productAPI.delete(productId);
-        setSuccess(`Product "${productName}" deleted successfully!`);
+        setSuccess(Product "${productName}" deleted successfully!);
         
         // Refresh the product list
         fetchProducts();
@@ -396,7 +392,7 @@ const AddProduct = () => {
         </div>
 
         {/* Product List with Delete Options */}
-        <div className={`${styles.formCard} ${styles.productListCard}`}>
+        <div className={${styles.formCard} ${styles.productListCard}}>
           <div className={styles.formHeader}>
             <h2>Manage Existing Products</h2>
             <p>You can delete products from the list below</p>
