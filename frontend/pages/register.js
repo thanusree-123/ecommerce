@@ -21,9 +21,9 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const validateEmail=(email)=>{
+  const validateEmail=(email) => {
     return email.endsWith("@gmail.com");
-  }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
