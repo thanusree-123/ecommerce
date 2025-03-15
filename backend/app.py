@@ -72,23 +72,27 @@ def handle_errors(func):
 @handle_errors
 def register():
     data = request.json
-    if not data.get("username") or not data.get("email") or not data.get("password"):
+    if not data.get("name") or not data.get("username") or not data.get("email") or not data.get("mobile") or not data.get("password"):
         return jsonify({"success": False, "error": "All fields are required"}), 400
-    if not data["email"].endsWith("@gmail.com"):
-        return jsonify({"success": False, "error": "only @gmail.com is allowed"}), 400
-
+    # Check if user already exists
     if users_collection.find_one({"email": data["email"]}):
         return jsonify({"success": False, "error": "User already exists"}), 400
-
+    
+    # Validate mobile number format (10 digits)
+    if not data["mobile"].isdigit() or len(data["mobile"]) != 10:
+        return jsonify({"success": False, "error": "Mobile number must be 10 digits"}), 400
+    
+    # Validate email format (@gmail.com only)
+    if not data["email"].endswith("@gmail.com"):
+        return jsonify({"success": False, "error": "Only Gmail addresses are allowed"}), 400
     hashed_password = generate_password_hash(data["password"])
     user_id = users_collection.insert_one({
+        "name": data["name"],
         "username": data["username"],
         "email": data["email"],
-        "mobile":data["mobile"],
-        "password": hashed_password,
-        "role":role
+        "mobile": data["mobile"],
+        "password": hashed_password
     }).inserted_id
-
     return jsonify({"success": True, "message": "User registered successfully", "user_id": str(user_id)}), 201
 
 # **User Login**
