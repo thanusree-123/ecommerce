@@ -8,8 +8,10 @@ import styles from './Register.module.css';
 const Register = () => {
   const [formData, setFormData] = useState({
     username: '',
+    mobile:'',
     email: '',
     password: '',
+    role:"user",
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,10 +21,19 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const validateEmail=(email)=>{
+    return email.endsWith("@gmail.com");
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if(!validateEmail(formData.email))=>{
+      setError('only @gmail.com emails are allowed.');
+      return;
+    }
 
     try {
       const response = await authAPI.register(formData);
@@ -51,6 +62,7 @@ const Register = () => {
           {success && <div className={styles.success}>{success}</div>}
           
           <form onSubmit={handleSubmit} className={styles.form}>
+            
             <div className={styles.inputGroup}>
               <label htmlFor="username">Username</label>
               <input 
@@ -59,6 +71,18 @@ const Register = () => {
                 name="username" 
                 placeholder="Enter your username" 
                 value={formData.username} 
+                onChange={handleChange} 
+                required 
+              />
+            </div>
+              <div className={styles.inputGroup}>
+              <label htmlFor="mobile">Mobile Number</label>
+              <input 
+                type="text" 
+                id="mobile"
+                name="mobile" 
+                placeholder="Enter your mobile number" 
+                value={formData.mobile} 
                 onChange={handleChange} 
                 required 
               />
@@ -88,6 +112,14 @@ const Register = () => {
                 onChange={handleChange} 
                 required 
               />
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label htmlFor="role">Role</label>
+              <select name="role" id="role" value={formData.role} onChange={handleChange}>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+                  </select>
             </div>
             
             <button type="submit" className={styles.submitButton}>
