@@ -33,7 +33,7 @@ const Register = () => {
     if(!validateEmail(formData.email))=>{
       setError('only @gmail.com emails are allowed.');
       return;
-    }
+    };
 
     try {
       const response = await authAPI.register(formData);
