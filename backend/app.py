@@ -74,6 +74,8 @@ def register():
     data = request.json
     if not data.get("username") or not data.get("email") or not data.get("password"):
         return jsonify({"success": False, "error": "All fields are required"}), 400
+    if not data["email"].endsWith("@gmail.com"):
+        return jsonify({"success": False, "error": "only @gmail.com is allowed"}), 400
 
     if users_collection.find_one({"email": data["email"]}):
         return jsonify({"success": False, "error": "User already exists"}), 400
@@ -82,7 +84,9 @@ def register():
     user_id = users_collection.insert_one({
         "username": data["username"],
         "email": data["email"],
-        "password": hashed_password
+        "mobile":data["mobile"],
+        "password": hashed_password,
+        "role":role
     }).inserted_id
 
     return jsonify({"success": True, "message": "User registered successfully", "user_id": str(user_id)}), 201
