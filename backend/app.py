@@ -6,6 +6,7 @@ import os
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+import uuid
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -44,7 +45,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Helper function to verify token (Added from first code)
+# Helper function to verify token
 def verify_token():
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
@@ -91,12 +92,12 @@ def register():
         "username": data["username"],
         "email": data["email"],
         "mobile": data["mobile"],
-        "password": hashed_password
+        "password": hashed_password,
+        "role": data.get("role", "user")  # Default role is user
     }).inserted_id
     return jsonify({"success": True, "message": "User registered successfully", "user_id": str(user_id)}), 201
 
 # **User Login**
-# In your Flask app.py
 @app.route('/api/auth/login', methods=['POST'])
 @handle_errors
 def login():
@@ -176,6 +177,7 @@ def add_product():
     product = {
         'name': data['name'],
         'price': price,
+        'description': data.get('description', ''),  # Make description optional
         'image': data['image']
     }
 
@@ -209,9 +211,45 @@ def delete_product(product_id):
     except Exception as e:
         return jsonify({"success": False, "error": f"Invalid product ID format: {str(e)}"}), 400
 
-# Cart endpoints
-# In your Flask app (app.py)
+# New endpoint for image upload
+@app.route('/api/upload', methods=['POST'])
+@handle_errors
+def upload_file():
+    # Check for token
+    token = verify_token()
+    if not token:
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    
+    # Check if the post request has the file part
+    if 'image' not in request.files:
+        return jsonify({"success": False, "error": "No file part"}), 400
+    
+    file = request.files['image']
+    
+    # If user does not select file, browser also submits an empty part without filename
+    if file.filename == '':
+        return jsonify({"success": False, "error": "No selected file"}), 400
+    
+    if file and allowed_file(file.filename):
+        # Generate a unique filename to prevent overwriting
+        filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
+        
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        file.save(file_path)
+        
+        # Return the URL to access the file
+        file_url = f"/uploads/{unique_filename}"
+        
+        return jsonify({
+            "success": True,
+            "message": "File uploaded successfully",
+            "imageUrl": file_url
+        }), 200
+    
+    return jsonify({"success": False, "error": "File type not allowed"}), 400
 
+# Cart endpoints
 @app.route('/api/cart', methods=['GET'])
 @handle_errors
 def get_cart():
@@ -221,8 +259,6 @@ def get_cart():
         return jsonify({"success": False, "error": "Authentication required"}), 401
     
     # Get user ID from token or request
-    # In a real app, you'd extract the user ID from the JWT token
-    # For now, we'll get it from the query parameter
     user_id = request.args.get('user_id')
     
     # Ensure we have a user ID
@@ -317,6 +353,7 @@ def clear_cart():
         updated_cart['_id'] = str(updated_cart['_id'])
     
     return jsonify({"success": True, "message": "Cart cleared successfully", "cart": updated_cart}), 200
+
 # Serve uploaded files
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
