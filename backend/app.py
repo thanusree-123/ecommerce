@@ -103,9 +103,14 @@ def login():
     data = request.json
     email = data.get("email")
     password = data.get("password")
+    role = data.get("role", "user")  # Default to "user" if role is not provided
 
     if not email or not password:
         return jsonify({"success": False, "error": "Email and password are required"}), 400
+
+    # Validate email format (@gmail.com only)
+    if not email.endswith("@gmail.com"):
+        return jsonify({"success": False, "error": "Only Gmail addresses are allowed"}), 400
 
     user = users_collection.find_one({"email": email})
     if not user:
@@ -115,12 +120,22 @@ def login():
     if not check_password_hash(user["password"], password):
         return jsonify({"success": False, "error": "Invalid credentials"}), 401
 
+    # Get or set the user's role
+    user_role = user.get("role", role)
+    
+    # If the user's role is not set in the database, update it
+    if "role" not in user:
+        users_collection.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"role": role}}
+        )
+
     # Return user info along with token
     user_data = {
         "_id": str(user["_id"]),
         "email": user["email"],
         "username": user["username"],
-        "role": user.get("role", "user")
+        "role": user_role
     }
 
     return jsonify({
